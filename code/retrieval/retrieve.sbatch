@@ -18,9 +18,8 @@ singularity exec ${nv} \
 source /ext3/env.sh; 
 conda activate base; 
 
-domain=story
 python3 retrieve.py \
-    --domain $domain \
+    --domain story \
     --queries_path ../../data/$domain/queries_test.json \
     --documents_path ../../data/$domain/documents \
     --embeddings_path embeddings/$domain/bm25 \
