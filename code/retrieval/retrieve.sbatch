@@ -1,15 +1,13 @@
 #!/bin/bash
 
 #SBATCH --nodes=1
-#SBATCH --partition=h200,l40s
 #SBATCH --cpus-per-task=4
 #SBATCH --tasks-per-node=1
 #SBATCH --time=1:00:00
 #SBATCH --mem=256GB
-#SBATCH --job-name=dr-gru-embed
+#SBATCH --job-name=msrs-ret
 #SBATCH --gres=gpu:1
 #SBATCH --output=out_files/retrieve.out
-#SBATCH --wrap "hostname && sleep infinity"
 
 if [[ -e /dev/nvidia0 ]]; then nv="--nv"; fi
 
