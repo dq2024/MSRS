@@ -24,6 +24,6 @@ python3 retrieve.py \
     --queries_path ../../data/$domain/queries_test.json \
     --documents_path ../../data/$domain/documents \
     --embeddings_path embeddings/$domain/bm25 \
-    --method bm25 \
+    --method llm_embedding \
     --model bm25
 "
