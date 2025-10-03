@@ -26,3 +26,4 @@ python3 retrieve.py \
     --embeddings_path embeddings/$domain/bm25 \
     --method bm25 \
     --model bm25
+"
