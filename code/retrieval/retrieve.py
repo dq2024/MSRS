@@ -17,13 +17,13 @@ from google import genai
 from dotenv import load_dotenv
 load_dotenv()
 
-client = OpenAI(api_key = os.environ["OPENAI_API_KEY"])
-gclient = genai.Client(
-    vertexai=True, 
-    project=os.environ["GEMINI_PROJECT"],
-    location=os.environ["GEMINI_LOCATION"],
-    http_options={"api_version": "v1"}
-)
+#client = OpenAI(api_key = os.environ["OPENAI_API_KEY"])
+# gclient = genai.Client(
+#     vertexai=True, 
+#     project=os.environ["GEMINI_PROJECT"],
+#     location=os.environ["GEMINI_LOCATION"],
+#     http_options={"api_version": "v1"}
+# )
 
 model_to_path = {
     "nv1": "nvidia/NV-Embed-v1",
