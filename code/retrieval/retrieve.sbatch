@@ -24,5 +24,5 @@ python3 retrieve.py \
     --documents_path ../../data/story/documents \
     --embeddings_path embeddings/story/bm25 \
     --method llm_embedding \
-    --model bm25
+    --model nv2
 "
