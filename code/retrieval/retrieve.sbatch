@@ -22,17 +22,17 @@ python3 retrieve.py \
     --domain story \
     --queries_path ../../data/story/queries_test.json \
     --documents_path ../../data/story/documents \
-    --embeddings_path embeddings/story/tuned-contriever \
+    --embeddings_path embeddings/story/contriever \
     --method llm_embedding \
-    --model tuned-contriever
+    --model contriever
 
 python3 retrieve.py \
     --domain meeting \
     --queries_path ../../data/meeting/queries_test.json \
     --documents_path ../../data/meeting/documents \
-    --embeddings_path embeddings/meeting/tuned-contriever \
+    --embeddings_path embeddings/meeting/contriever \
     --method llm_embedding \
-    --model tuned-contriever
+    --model contriever
 
 
 
