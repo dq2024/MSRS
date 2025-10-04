@@ -418,19 +418,19 @@ if __name__ == "__main__":
     if model_name in model_to_path:
         if model_name == "tuned-contriever":
             import torch
-        
-            # Load base contriever model structure
+    
             model = SentenceTransformer("facebook/contriever-msmarco")
-            
             checkpoint_path = f"{model_to_path[model_name]}/checkpoint.pth"
             checkpoint = torch.load(checkpoint_path, map_location='cpu')
             
-            if 'model_state_dict' in checkpoint:
-                model[0].auto_model.load_state_dict(checkpoint['model_state_dict'])
-            elif 'state_dict' in checkpoint:
-                model[0].auto_model.load_state_dict(checkpoint['state_dict'])
+            print("Checkpoint keys:", checkpoint.keys())
+            
+            if 'model' in checkpoint:
+                model_state_dict = checkpoint['model']
             else:
-                model[0].auto_model.load_state_dict(checkpoint)
+                model_state_dict = checkpoint
+            
+            model[0].auto_model.load_state_dict(model_state_dict)
             
             model.max_seq_length = 512
             print(f"Loaded fine-tuned contriever from {checkpoint_path}")
