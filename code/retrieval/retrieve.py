@@ -435,7 +435,7 @@ if __name__ == "__main__":
                     clean_key = key.replace("encoder.", "", 1)
                     encoder_state[clean_key] = value
             
-            model[0].auto_model.load_state_dict(encoder_state)
+            model[0].auto_model.load_state_dict(encoder_state, strict=False)
             model.max_seq_length = 512
         else:
             model = SentenceTransformer(
