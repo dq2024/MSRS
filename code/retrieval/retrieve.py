@@ -44,7 +44,7 @@ gemini_model_to_api = {
 supported_models = [
     "nv1", "nv2", "qwen-1-5", "qwen-7", "gritlm", "text-3-small", 
     "text-3-large", "text-ada", "promptriever", "gemini-embedding", 
-    "bm25, contriever"
+    "bm25", "contriever"
 ]
 
 prompt = "Given a question, retrieve passages that answer the question"
@@ -154,6 +154,11 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
                     contents=chunk
                 ).embeddings[0].values for chunk in chunks
             ])
+        elif model_name == "contriever":
+            for chunk in chunks:
+                chunk_embeddings.append(
+                    model.encode([chunk], batch_size=1, normalize_embeddings=True)[0]
+                )
         else:
             for i in range(len(chunks)):
                 if is_query:
