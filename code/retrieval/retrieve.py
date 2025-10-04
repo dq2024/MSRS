@@ -98,7 +98,7 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
                     return model.encode(
                         [text], 
                         batch_size=1, 
-                        normalize_embeddings=True
+                        normalize_embeddings=False
                     )[0]
                 else:
                     return model.encode(
@@ -123,7 +123,7 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
                     return model.encode(
                         [text], 
                         batch_size=1, 
-                        normalize_embeddings=True
+                        normalize_embeddings=False
                     )[0]
                 else:
                     return model.encode(
@@ -168,7 +168,7 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
             chunk_embeddings = []
             for chunk in chunks:
                 chunk_embeddings.append(
-                    model.encode([chunk], batch_size=1, normalize_embeddings=True)[0]
+                    model.encode([chunk], batch_size=1, normalize_embeddings=False)[0]
                 )
             chunk_embeddings = np.array(chunk_embeddings)
         else:
@@ -437,6 +437,8 @@ if __name__ == "__main__":
             
             model[0].auto_model.load_state_dict(encoder_state, strict=False)
             model.max_seq_length = 512
+            print(f"Loaded fine-tuned contriever from {checkpoint_path}")
+
         else:
             model = SentenceTransformer(
                 model_to_path[model_name], 
