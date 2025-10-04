@@ -20,9 +20,9 @@ conda activate base;
 
 python3 retrieve.py \
     --domain story \
-    --queries_path ../../data/$domain/queries_test.json \
-    --documents_path ../../data/$domain/documents \
-    --embeddings_path embeddings/$domain/bm25 \
+    --queries_path ../../data/story/queries_test.json \
+    --documents_path ../../data/story/documents \
+    --embeddings_path embeddings/story/bm25 \
     --method llm_embedding \
     --model bm25
 "
