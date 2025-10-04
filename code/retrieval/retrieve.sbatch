@@ -19,10 +19,10 @@ source /ext3/env.sh;
 conda activate base; 
 
 python3 retrieve.py \
-    --domain story \
-    --queries_path ../../data/story/queries_test.json \
-    --documents_path ../../data/story/documents \
-    --embeddings_path embeddings/story/contriever \
+    --domain meeting \
+    --queries_path ../../data/meeting/queries_test.json \
+    --documents_path ../../data/meeting/documents \
+    --embeddings_path embeddings/meeting/contriever \
     --method llm_embedding \
     --model contriever
 "
