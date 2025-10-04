@@ -93,7 +93,7 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
             return result.embeddings[0].values
         if is_query:
             if model_name in model_to_path:
-                if model_name == "contriever":
+                if model_name == "contriever" or model_name == "tuned-contriever":
                     # Contriever doesn't use instruction prefixes
                     return model.encode(
                         [text], 
@@ -118,7 +118,7 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
                 )[0]
         else:
             if model_name in model_to_path:
-                if model_name == "contriever":
+                if model_name == "contriever" or model_name == "tuned-contriever":
                     # Contriever doesn't use instruction prefixes
                     return model.encode(
                         [text], 
@@ -164,7 +164,7 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
                     contents=chunk
                 ).embeddings[0].values for chunk in chunks
             ])
-        elif model_name == "contriever":
+        elif model_name == "contriever" or model_name == "tuned-contriever":
             chunk_embeddings = []
             for chunk in chunks:
                 chunk_embeddings.append(
