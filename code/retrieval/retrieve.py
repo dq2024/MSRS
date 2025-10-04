@@ -416,15 +416,34 @@ if __name__ == "__main__":
     model_name = args.model
     model = None
     if model_name in model_to_path:
-        model = SentenceTransformer(
-            model_to_path[model_name], 
-            trust_remote_code=True
-        )
-        if model_name == "contriever":
+        if model_name == "tuned-contriever":
+            import torch
+        
+            # Load base contriever model structure
+            model = SentenceTransformer("facebook/contriever-msmarco")
+            
+            checkpoint_path = f"{model_to_path[model_name]}/checkpoint.pth"
+            checkpoint = torch.load(checkpoint_path, map_location='cpu')
+            
+            if 'model_state_dict' in checkpoint:
+                model[0].auto_model.load_state_dict(checkpoint['model_state_dict'])
+            elif 'state_dict' in checkpoint:
+                model[0].auto_model.load_state_dict(checkpoint['state_dict'])
+            else:
+                model[0].auto_model.load_state_dict(checkpoint)
+            
             model.max_seq_length = 512
+            print(f"Loaded fine-tuned contriever from {checkpoint_path}")
         else:
-            model.max_seq_length = 4000
-            model.tokenizer.padding_side="right"
+            model = SentenceTransformer(
+                model_to_path[model_name], 
+                trust_remote_code=True
+            )
+            if model_name == "contriever":
+                model.max_seq_length = 512
+            else:
+                model.max_seq_length = 4000
+                model.tokenizer.padding_side="right"
     elif model_name == "gritlm":
         model = GritLM("GritLM/GritLM-7B", torch_dtype="auto")
     elif model_name == "promptriever":
