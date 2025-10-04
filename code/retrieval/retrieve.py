@@ -30,7 +30,6 @@ model_to_path = {
     "nv2": "nvidia/NV-Embed-v2",
     "qwen-1-5": "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
     "qwen-7": "Alibaba-NLP/gte-Qwen2-7B-instruct",
-    "contriever": "facebook/contriever-msmarco"
 }
 openai_model_to_api = {
     "text-3-small": "text-embedding-3-small",
@@ -44,7 +43,7 @@ gemini_model_to_api = {
 supported_models = [
     "nv1", "nv2", "qwen-1-5", "qwen-7", "gritlm", "text-3-small", 
     "text-3-large", "text-ada", "promptriever", "gemini-embedding", 
-    "bm25", "contriever"
+    "bm25"
 ]
 
 prompt = "Given a question, retrieve passages that answer the question"
@@ -91,20 +90,12 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
             return result.embeddings[0].values
         if is_query:
             if model_name in model_to_path:
-                if model_name == "contriever":
-                    # Contriever doesn't use instruction prefixes
-                    return model.encode(
-                        [text], 
-                        batch_size=1, 
-                        normalize_embeddings=True
-                    )[0]
-                else:
-                    return model.encode(
-                        add_eos([text]), 
-                        batch_size=1, 
-                        prompt=query_prefix, 
-                        normalize_embeddings=True
-                    )[0]
+                return model.encode(
+                    add_eos([text]), 
+                    batch_size=1, 
+                    prompt=query_prefix, 
+                    normalize_embeddings=True
+                )[0]
             elif model_name == "gritlm":
                 return model.encode(
                     [text], 
@@ -116,19 +107,11 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
                 )[0]
         else:
             if model_name in model_to_path:
-                if model_name == "contriever":
-                    # Contriever doesn't use instruction prefixes
-                    return model.encode(
-                        [text], 
-                        batch_size=1, 
-                        normalize_embeddings=True
-                    )[0]
-                else:
-                    return model.encode(
-                        add_eos([text]), 
-                        batch_size=1, 
-                        normalize_embeddings=True
-                    )[0]
+                return model.encode(
+                    add_eos([text]), 
+                    batch_size=1, 
+                    normalize_embeddings=True
+                )[0]
             elif model_name == "gritlm":
                 return model.encode(
                     [text], 
@@ -162,13 +145,6 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
                     contents=chunk
                 ).embeddings[0].values for chunk in chunks
             ])
-        elif model_name == "contriever":
-            chunk_embeddings = []
-            for chunk in chunks:
-                chunk_embeddings.append(
-                    model.encode([chunk], batch_size=1, normalize_embeddings=True)[0]
-                )
-            chunk_embeddings = np.array(chunk_embeddings)
         else:
             for i in range(len(chunks)):
                 if is_query:
@@ -322,8 +298,7 @@ class InformationRetrieval:
                 num_relevant += 1
                 sum_precision += num_relevant / (i + 1)
         ap = sum_precision / len(ground_truth_set) if ground_truth_set else 0
-        #return {"Precision": precision, "Recall": recall, "F1": f1, "NDCG": ndcg, "AP": ap}
-        return {"Precision": precision, "Recall": recall, "NDCG": ndcg, "AP": ap}
+        return {"Precision": precision, "Recall": recall, "F1": f1, "NDCG": ndcg, "AP": ap}
 
     def run_evaluation(
         self, 
@@ -418,11 +393,8 @@ if __name__ == "__main__":
             model_to_path[model_name], 
             trust_remote_code=True
         )
-        if model_name == "contriever":
-            model.max_seq_length = 512
-        else:
-            model.max_seq_length = 4000
-            model.tokenizer.padding_side="right"
+        model.max_seq_length = 4000
+        model.tokenizer.padding_side="right"
     elif model_name == "gritlm":
         model = GritLM("GritLM/GritLM-7B", torch_dtype="auto")
     elif model_name == "promptriever":
@@ -468,3 +440,4 @@ if __name__ == "__main__":
         os.makedirs(f"{domain}/{model_name}")
         with open(f"{domain}/{model_name}/{args.split}.json", "w") as f:
             json.dump(data, f, indent=4)
+            
