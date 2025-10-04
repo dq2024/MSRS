@@ -22,17 +22,17 @@ python3 retrieve.py \
     --domain story \
     --queries_path ../../data/story/queries_test.json \
     --documents_path ../../data/story/documents \
-    --embeddings_path embeddings/story/qwen-1-5 \
+    --embeddings_path embeddings/story/qwen-7 \
     --method llm_embedding \
-    --model qwen-1-5
+    --model qwen-7
 
 python3 retrieve.py \
     --domain meeting \
     --queries_path ../../data/meeting/queries_test.json \
     --documents_path ../../data/meeting/documents \
-    --embeddings_path embeddings/meeting/qwen-1-5 \
+    --embeddings_path embeddings/meeting/qwen-7 \
     --method llm_embedding \
-    --model qwen-1-5
+    --model qwen-7
 
 
 
