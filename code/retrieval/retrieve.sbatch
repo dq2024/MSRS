@@ -20,12 +20,12 @@ conda activate base;
 
 
 python3 retrieve.py \
-    --domain meeting \
-    --queries_path ../../data/meeting/queries_test.json \
-    --documents_path ../../data/meeting/documents \
-    --embeddings_path embeddings/meeting/qwen-1-5 \
+    --domain story \
+    --queries_path ../../data/story/queries_test.json \
+    --documents_path ../../data/story/documents \
+    --embeddings_path embeddings/story/nv2 \
     --method llm_embedding \
-    --model qwen-1-5
+    --model nv2
 
 
 "
