@@ -164,10 +164,12 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
                 ).embeddings[0].values for chunk in chunks
             ])
         elif model_name == "contriever":
+            chunk_embeddings = []
             for chunk in chunks:
                 chunk_embeddings.append(
                     model.encode([chunk], batch_size=1, normalize_embeddings=True)[0]
                 )
+                chunk_embeddings = np.array(chunk_embeddings)
         else:
             for i in range(len(chunks)):
                 if is_query:
