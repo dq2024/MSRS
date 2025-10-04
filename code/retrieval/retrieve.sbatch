@@ -24,5 +24,45 @@ python3 retrieve.py \
     --documents_path ../../data/meeting/documents \
     --embeddings_path embeddings/meeting/contriever \
     --method llm_embedding \
-    --model contriever
+    --model nv1
+
+python3 retrieve.py \
+    --domain meeting \
+    --queries_path ../../data/meeting/queries_test.json \
+    --documents_path ../../data/meeting/documents \
+    --embeddings_path embeddings/meeting/contriever \
+    --method llm_embedding \
+    --model nv2
+
+python3 retrieve.py \
+    --domain meeting \
+    --queries_path ../../data/meeting/queries_test.json \
+    --documents_path ../../data/meeting/documents \
+    --embeddings_path embeddings/meeting/contriever \
+    --method llm_embedding \
+    --model qwen-1-5
+
+python3 retrieve.py \
+    --domain meeting \
+    --queries_path ../../data/meeting/queries_test.json \
+    --documents_path ../../data/meeting/documents \
+    --embeddings_path embeddings/meeting/contriever \
+    --method llm_embedding \
+    --model qwen-7
+
+python3 retrieve.py \
+    --domain meeting \
+    --queries_path ../../data/meeting/queries_test.json \
+    --documents_path ../../data/meeting/documents \
+    --embeddings_path embeddings/meeting/contriever \
+    --method llm_embedding \
+    --model gritlm
+
+python3 retrieve.py \
+    --domain meeting \
+    --queries_path ../../data/meeting/queries_test.json \
+    --documents_path ../../data/meeting/documents \
+    --embeddings_path embeddings/meeting/contriever \
+    --method llm_embedding \
+    --model promptriever
 "
