@@ -23,9 +23,9 @@ python3 retrieve.py \
     --domain meeting \
     --queries_path ../../data/meeting/queries_test.json \
     --documents_path ../../data/meeting/documents \
-    --embeddings_path embeddings/meeting/contriever \
+    --embeddings_path embeddings/meeting/nv2 \
     --method llm_embedding \
-    --model contriever
+    --model nv2
 
 
 "
