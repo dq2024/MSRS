@@ -323,7 +323,8 @@ class InformationRetrieval:
                 num_relevant += 1
                 sum_precision += num_relevant / (i + 1)
         ap = sum_precision / len(ground_truth_set) if ground_truth_set else 0
-        return {"Precision": precision, "Recall": recall, "F1": f1, "NDCG": ndcg, "AP": ap}
+        #return {"Precision": precision, "Recall": recall, "F1": f1, "NDCG": ndcg, "AP": ap}
+        return {"Precision": precision, "Recall": recall, "NDCG": ndcg, "AP": ap}
 
     def run_evaluation(
         self, 
