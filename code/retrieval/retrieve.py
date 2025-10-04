@@ -116,11 +116,20 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
                 )[0]
         else:
             if model_name in model_to_path:
-                return model.encode(
-                    add_eos([text]), 
-                    batch_size=1, 
-                    normalize_embeddings=True
-                )[0]
+                if model_name == "contriever":
+                    # Contriever doesn't use instruction prefixes
+                    return model.encode(
+                        [text], 
+                        batch_size=1, 
+                        normalize_embeddings=True
+                    )[0]
+                else:
+                    return model.encode(
+                        add_eos([text]), 
+                        batch_size=1, 
+                        prompt=query_prefix, 
+                        normalize_embeddings=True
+                    )[0]
             elif model_name == "gritlm":
                 return model.encode(
                     [text], 
@@ -411,7 +420,7 @@ if __name__ == "__main__":
             model.max_seq_length = 512
         else:
             model.max_seq_length = 4000
-        model.tokenizer.padding_side="right"
+            model.tokenizer.padding_side="right"
     elif model_name == "gritlm":
         model = GritLM("GritLM/GritLM-7B", torch_dtype="auto")
     elif model_name == "promptriever":
