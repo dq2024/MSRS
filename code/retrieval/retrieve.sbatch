@@ -22,7 +22,7 @@ python3 retrieve.py \
     --domain story \
     --queries_path ../../data/story/queries_test.json \
     --documents_path ../../data/story/documents \
-    --embeddings_path embeddings/story/nv2 \
+    --embeddings_path embeddings/story/contriever \
     --method llm_embedding \
-    --model nv2
+    --model contriever
 "
