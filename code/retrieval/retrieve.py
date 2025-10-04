@@ -31,7 +31,8 @@ model_to_path = {
     "qwen-1-5": "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
     "qwen-7": "Alibaba-NLP/gte-Qwen2-7B-instruct",
     "contriever": "facebook/contriever-msmarco",
-    "tuned-contriever": "/scratch/dq2024/models/diverse_retriever/checkpoints/qampari_base_finetuned_only_random/checkpoint/best_model"
+    "tuned-contriever": "/scratch/dq2024/models/diverse_retriever/checkpoints/qampari_base_finetuned_only_random/checkpoint/best_model",
+    'qwen3-0-6': "Qwen/Qwen3-Embedding-0.6B",
 }
 openai_model_to_api = {
     "text-3-small": "text-embedding-3-small",
@@ -45,7 +46,7 @@ gemini_model_to_api = {
 supported_models = [
     "nv1", "nv2", "qwen-1-5", "qwen-7", "gritlm", "text-3-small", 
     "text-3-large", "text-ada", "promptriever", "gemini-embedding", 
-    "bm25", "contriever", "tuned-contriever"
+    "bm25", "contriever", "tuned-contriever", "qwen3-0-6"
 ]
 
 prompt = "Given a question, retrieve passages that answer the question"
