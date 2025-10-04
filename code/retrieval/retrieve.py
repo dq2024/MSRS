@@ -420,20 +420,23 @@ if __name__ == "__main__":
             import torch
     
             model = SentenceTransformer("facebook/contriever-msmarco")
+            
             checkpoint_path = f"{model_to_path[model_name]}/checkpoint.pth"
             checkpoint = torch.load(checkpoint_path, map_location='cpu')
             
-            print("Checkpoint keys:", checkpoint.keys())
-            
             if 'model' in checkpoint:
-                model_state_dict = checkpoint['model']
+                full_model_state = checkpoint['model']
             else:
-                model_state_dict = checkpoint
+                full_model_state = checkpoint
+ 
+            encoder_state = {}
+            for key, value in full_model_state.items():
+                if key.startswith("encoder."):
+                    clean_key = key.replace("encoder.", "", 1)
+                    encoder_state[clean_key] = value
             
-            model[0].auto_model.load_state_dict(model_state_dict)
-            
+            model[0].auto_model.load_state_dict(encoder_state)
             model.max_seq_length = 512
-            print(f"Loaded fine-tuned contriever from {checkpoint_path}")
         else:
             model = SentenceTransformer(
                 model_to_path[model_name], 
