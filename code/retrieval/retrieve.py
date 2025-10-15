@@ -31,7 +31,7 @@ model_to_path = {
     "qwen-1-5": "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
     "qwen-7": "Alibaba-NLP/gte-Qwen2-7B-instruct",
     "contriever": "facebook/contriever-msmarco",
-    "tuned-contriever": "/scratch/dq2024/models/diverse_retriever/checkpoints/qampari_contriever_standard_only_random_0123/checkpoint/best_model",
+    "tuned-contriever": "/scratch/dq2024/models/diverse_retriever/checkpoints/qampari_base_finetuned_only_random/checkpoint/best_model",
     'qwen3-0-6': "Qwen/Qwen3-Embedding-0.6B",
 }
 openai_model_to_api = {
@@ -435,14 +435,9 @@ if __name__ == "__main__":
                     clean_key = key.replace("encoder.", "", 1)
                     encoder_state[clean_key] = value
             
-            try:
-                model[0].auto_model.load_state_dict(encoder_state, strict=True)
-            except RuntimeError as e:
-                print(f"Warning: Some weights not loaded properly: {e}", flush=True)
-                # If it fails, load with strict=False but be aware of the issue
-                model[0].auto_model.load_state_dict(encoder_state, strict=False)
+            model[0].auto_model.load_state_dict(encoder_state, strict=False)
             model.max_seq_length = 512
-            print(f"Loaded fine-tuned contriever from {checkpoint_path}", flush=True)
+            print(f"Loaded fine-tuned contriever from {checkpoint_path}")
 
         else:
             model = SentenceTransformer(
