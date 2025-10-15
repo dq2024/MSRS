@@ -436,7 +436,7 @@ def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=
     total_augmented_tokens = len(augmented.split())
     
     if total_augmented_tokens > 512:
-        print(f"WARNING: Augmented query has {total_augmented_tokens} tokens, exceeds contriever's 512 limit!")    
+        print(f"  ⚠️  WARNING: Augmented query has {total_augmented_tokens} tokens, exceeds contriever's 512 limit!")    
     return augmented
 
 def dedup_union(list_a, list_b):
@@ -478,9 +478,17 @@ def run_two_round_pipeline(
     max_tokens_per_doc=256,
     verifier_mode="oracle"
 ):
+    """
+    Two-round retrieval where both rounds retrieve exactly n_eval docs,
+    and metrics are computed on top-n_eval (mirrors vanilla).
+    Outputs are written under:
+      outputs/two_round/{domain}/r1-{base_model_name}__r2-{tuned_model_name}/K{K}/...
+    """
+    # Prepare per-model embedding caches
     emb_base  = load_or_compute_embeddings(ir, base_model_name,  base_model,  domain, base_embeddings_path)
     emb_tuned = load_or_compute_embeddings(ir, tuned_model_name, tuned_model, domain, tuned_embeddings_path)
 
+    # Output root includes model names so runs are self-describing
     combo_dir = f"r1-{base_model_name}__r2-{tuned_model_name}"
     out_root = os.path.join("outputs", "two_round", domain, combo_dir)
     os.makedirs(out_root, exist_ok=True)
