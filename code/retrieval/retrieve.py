@@ -423,13 +423,9 @@ def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=
             total_original_tokens += original_tokens
             total_kept_tokens += snippet_tokens
             
-            # Print truncation info per document
             if original_tokens > max_tokens_per_doc:
                 print(f"  Doc {did}: TRUNCATED from {original_tokens} to {snippet_tokens} tokens")
-            else:
-                print(f"  Doc {did}: {snippet_tokens} tokens (no truncation needed)")
             
-            # Format each doc with its ID as a prefix
             doc_snippets.append(f"{did} {snippet}")
     
     # Add documents section if we have any
@@ -437,14 +433,10 @@ def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=
         documents_text = "\n".join(doc_snippets)
         augmented += f"\n\nDocuments: {documents_text}"
     
-    # Print summary statistics
     total_augmented_tokens = len(augmented.split())
     
-    # Warning if exceeds contriever limit
     if total_augmented_tokens > 512:
-        print(f"  ⚠️  WARNING: Augmented query has {total_augmented_tokens} tokens, exceeds contriever's 512 limit!")
-        print(f"      Will be handled by chunking/averaging in get_embedding()")
-    
+        print(f"WARNING: Augmented query has {total_augmented_tokens} tokens, exceeds contriever's 512 limit!")    
     return augmented
 
 def dedup_union(list_a, list_b):
