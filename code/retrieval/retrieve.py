@@ -725,7 +725,7 @@ if __name__ == "__main__":
             base_model_name=args.r1_model,
             base_model=r1_model,
             base_embeddings_path=r1_emb_path,
-            tuned_model_name=model_name,     # whatever you passed to vanilla (e.g., tuned-contriever)
+            tuned_model_name=model_name,    
             tuned_model=model,
             tuned_embeddings_path=r2_emb_path,
             n_eval=n_eval,
