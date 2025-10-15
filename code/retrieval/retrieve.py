@@ -528,7 +528,7 @@ def run_two_round_pipeline(
             f.write(f"K={K} (domain={domain}, split={split}, r1={base_model_name}, r2={tuned_model_name}, n_eval={n_eval})\n")
             f.write(f"Average docs used for augmentation: {avg_docs_used:.2f} / {K}\n")
             f.write("R1 -> "    + ", ".join(f"{k}: {v:.4f}" for k,v in avg_r1.items())  + "\n")
-            f.write("R2 -> "    + ", ".join(f"{k}: {v:.4f}" for k,v in avg_r2.items())  + "\n")
+            f.write("R2 -> "    + ", ".join(f"{k}: {v:.6f}" for k,v in avg_r2.items())  + "\n")
             f.write("Final -> " + ", ".join(f"{k}: {v:.4f}" for k,v in avg_fin.items()) + "\n")
 
         print(f"[two-round] Wrote {out_json} and {out_txt}")
