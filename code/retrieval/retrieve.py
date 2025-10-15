@@ -435,7 +435,12 @@ if __name__ == "__main__":
                     clean_key = key.replace("encoder.", "", 1)
                     encoder_state[clean_key] = value
             
-            model[0].auto_model.load_state_dict(encoder_state, strict=False)
+            try:
+                model[0].auto_model.load_state_dict(encoder_state, strict=True)
+            except RuntimeError as e:
+                print(f"Warning: Some weights not loaded properly: {e}")
+                # If it fails, load with strict=False but be aware of the issue
+                model[0].auto_model.load_state_dict(encoder_state, strict=False)
             model.max_seq_length = 512
             print(f"Loaded fine-tuned contriever from {checkpoint_path}")
 
