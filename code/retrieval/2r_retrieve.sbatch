@@ -17,7 +17,7 @@ singularity exec ${nv} \
 source /ext3/env.sh;
 conda activate base;
 
-
+# STORY (vanilla + two-round)
 python3 retrieve.py \
   --domain story \
   --queries_path ../../data/story/queries_test.json \
@@ -31,6 +31,7 @@ python3 retrieve.py \
   --k_list 0 1 2 3 4 5 6 7 8 \
   --snippet_tokens 256;
 
+# MEETING (vanilla + two-round)
 python3 retrieve.py \
   --domain meeting \
   --queries_path ../../data/meeting/queries_test.json \
@@ -38,33 +39,6 @@ python3 retrieve.py \
   --embeddings_path embeddings/meeting/tuned-contriever \
   --method llm_embedding \
   --model tuned-contriever \
-  --two_round \
-  --r1_model contriever \
-  --r1_embeddings_path embeddings/meeting/contriever \
-  --k_list 0 1 2 3 \
-  --snippet_tokens 256
-
-
-python3 retrieve.py \
-  --domain story \
-  --queries_path ../../data/story/queries_test.json \
-  --documents_path ../../data/story/documents \
-  --embeddings_path embeddings/story/contriever \
-  --method llm_embedding \
-  --model contriever \
-  --two_round \
-  --r1_model contriever \
-  --r1_embeddings_path embeddings/story/contriever \
-  --k_list 0 1 2 3 \
-  --snippet_tokens 256;
-
-python3 retrieve.py \
-  --domain meeting \
-  --queries_path ../../data/meeting/queries_test.json \
-  --documents_path ../../data/meeting/documents \
-  --embeddings_path embeddings/meeting/contriever \
-  --method llm_embedding \
-  --model contriever \
   --two_round \
   --r1_model contriever \
   --r1_embeddings_path embeddings/meeting/contriever \
