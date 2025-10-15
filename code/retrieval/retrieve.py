@@ -406,7 +406,9 @@ def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=
     print(f"  Documents to include: {len(selected_ids)}")
     
     # Start with "Question: [query]"
-    augmented = f"Question: {base_query.strip()}"
+    if len(selected_ids) == 0:
+        print(f"  No documents to augment - returning original query")
+        return base_query.strip()
     
     # Collect document snippets
     doc_snippets = []
