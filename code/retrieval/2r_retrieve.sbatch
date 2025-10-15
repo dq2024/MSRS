@@ -29,6 +29,7 @@ python3 retrieve.py \
   --r1_model contriever \
   --r1_embeddings_path embeddings/story/contriever \
   --k_list 1 2 3 \
+  --overwrite \
   --snippet_tokens 256;
 
 # MEETING (vanilla + two-round)
@@ -43,5 +44,6 @@ python3 retrieve.py \
   --r1_model contriever \
   --r1_embeddings_path embeddings/meeting/contriever \
   --k_list 1 2 3 \
+  --overwrite \
   --snippet_tokens 256
 "
