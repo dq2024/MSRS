@@ -394,58 +394,49 @@ def verifier_oracle(r1_ranking, gold_documents, k):
     gold = set(gold_documents)
     return [d for d in r1_ranking if d in gold][:k]
 
-def build_augmented_query(base_query, k, selected_ids, id2text, max_tokens_per_doc=256, model=None, model_name=None):    
-    if k != 0:
-        base_format = f"Question: {base_query.strip()}\n\nDocuments: "
-    else: 
-        base_format = f"{base_query.strip()}"
+def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=256):
+    """Concatenate query + short snippets from the selected docs in the specified format."""
+    def head_tokens(text, n): 
+        toks = text.split()
+        return " ".join(toks[:n])
     
-    max_token_limit = 512 if model_name in ["contriever", "tuned-contriever"] else 8192
+    # Print base query info
+    print(f"\n[Augmented Query Construction]")
+    print(f"  Base query tokens: {len(base_query.split())}")
+    print(f"  Documents to include: {len(selected_ids)}")
     
-    def get_token_count(text):
-        if model and hasattr(model, 'tokenizer'):
-            return len(model.tokenizer(text, add_special_tokens=True)['input_ids'])
+    # Start with "Question: [query]"
+    augmented = f"Question: {base_query.strip()}"
     
-    doc_texts = []
+    # Collect document snippets
+    doc_snippets = []
+    total_original_tokens = 0
+    total_kept_tokens = 0
+    
     for did in selected_ids:
         if did in id2text:
-            words = id2text[did].split()[:max_tokens_per_doc]
-            doc_text = f"{did} {' '.join(words)}"
-            doc_texts.append(doc_text)
-    
-    documents_str = '\n'.join(doc_texts)
-    augmented = base_format + documents_str
-    
-    initial_tokens = get_token_count(augmented)
-    
-    if initial_tokens > max_token_limit:
-        print(f"Exceeds {max_token_limit} tokens, truncating documents...")
-        
-        truncate_amount = 10  # Remove 10 words at a time
-        iteration = 0
-        
-        while get_token_count(augmented) > max_token_limit and truncate_amount < max_tokens_per_doc:
-            iteration += 1
-            doc_texts = []
+            full_text = id2text[did]
+            original_tokens = len(full_text.split())
+            snippet = head_tokens(full_text, max_tokens_per_doc)
+            snippet_tokens = len(snippet.split())
             
-            for did in selected_ids:
-                if did in id2text:
-                    # Reduce document length
-                    words_to_keep = max(10, max_tokens_per_doc - (truncate_amount * iteration))
-                    words = id2text[did].split()[:words_to_keep]
-                    doc_text = f"{did} {' '.join(words)}"
-                    doc_texts.append(doc_text)
+            total_original_tokens += original_tokens
+            total_kept_tokens += snippet_tokens
             
-            documents_str = '\n'.join(doc_texts)
-            augmented = base_format + documents_str
+            if original_tokens > max_tokens_per_doc:
+                print(f"  Doc {did}: TRUNCATED from {original_tokens} to {snippet_tokens} tokens")
             
-            if words_to_keep <= 10:  
-                print(f"Reached minimum document size, stopping truncation")
-                break
+            doc_snippets.append(f"{did} {snippet}")
     
-    final_tokens = get_token_count(augmented)
-    print(f"  Final augmented query: {final_tokens} tokens")
+    # Add documents section if we have any
+    if doc_snippets:
+        documents_text = "\n".join(doc_snippets)
+        augmented += f"\n\nDocuments: {documents_text}"
     
+    total_augmented_tokens = len(augmented.split())
+    
+    if total_augmented_tokens > 512:
+        print(f"WARNING: Augmented query has {total_augmented_tokens} tokens, exceeds contriever's 512 limit!")    
     return augmented
 
 def dedup_union(list_a, list_b):
@@ -515,15 +506,7 @@ def run_two_round_pipeline(
 
             total_docs_used += len(r1_sel)
 
-            aug_query = build_augmented_query(
-                query,
-                K,
-                r1_sel,
-                ir.meeting_texts,
-                max_tokens_per_doc=max_tokens_per_doc,
-                model=tuned_model,
-                model_name=tuned_model_name
-            )
+            aug_query = build_augmented_query(query, r1_sel, ir.meeting_texts, max_tokens_per_doc=max_tokens_per_doc)
 
             r2_eval = llm_embedding_with_given_embeddings(
                 ir, tuned_model_name, tuned_model, domain, aug_query, n_eval, emb_tuned
