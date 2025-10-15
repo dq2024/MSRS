@@ -387,6 +387,138 @@ class InformationRetrieval:
                 print(f"{metric_name}: {avg_value:.4f}")
             print()
 
+# ========= Two-round helpers (non-intrusive) =========
+
+def verifier_oracle(r1_ranking, gold_documents, k):
+    """Select up to K docs from R1 that are actually gold (upper bound)."""
+    gold = set(gold_documents)
+    return [d for d in r1_ranking if d in gold][:k]
+
+def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=256):
+    """Concatenate query + short snippets from the selected docs."""
+    def head_tokens(text, n): 
+        toks = text.split()
+        return " ".join(toks[:n])
+    parts = [base_query.strip()]
+    for did in selected_ids:
+        if did in id2text:
+            parts.append(f"[DOC {did}]: {head_tokens(id2text[did], max_tokens_per_doc)}")
+    return "\n\n".join(parts)
+
+def dedup_union(list_a, list_b):
+    seen, out = set(), []
+    for x in list_a + list_b:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out
+
+def load_or_compute_embeddings(ir, model_name, model, domain, embeddings_json_path):
+    """Return {doc_id: embedding(list[float])}; compute & cache if missing."""
+    path = embeddings_json_path if embeddings_json_path.endswith(".json") else embeddings_json_path + ".json"
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    emb = ir.precompute_embeddings(model_name, model, domain)
+    with open(path, "w") as f:
+        json.dump(emb, f)
+    return emb
+
+def llm_embedding_with_given_embeddings(ir, model_name, model, domain, query, n, embeddings_dict):
+    """Rank docs using *provided* embeddings dict (keeps your original .embeddings untouched)."""
+    q = np.array(get_embedding(model_name, model, domain, query, is_query=True), dtype=float).reshape(1, -1)
+    D = np.array([embeddings_dict[mid] for mid in ir.meeting_ids], dtype=float)
+    sims = cosine_similarity(q, D)[0]
+    idxs = sorted(range(len(sims)), key=lambda i: sims[i], reverse=True)[:n]
+    return [ir.meeting_ids[i] for i in idxs]
+
+def run_two_round_pipeline(
+    ir,
+    domain,
+    split,
+    base_model_name, base_model, base_embeddings_path,   # Round 1
+    tuned_model_name, tuned_model, tuned_embeddings_path, # Round 2
+    N1=20, N2=20,
+    K_list=(1,2,3),
+    final_cap=None,
+    max_tokens_per_doc=256,
+    verifier_mode="oracle"  # only "oracle" implemented here
+):
+    # Embeddings per model
+    emb_base  = load_or_compute_embeddings(ir, base_model_name,  base_model,  domain, base_embeddings_path)
+    emb_tuned = load_or_compute_embeddings(ir, tuned_model_name, tuned_model, domain, tuned_embeddings_path)
+
+    out_root = os.path.join("outputs", "two_round", domain)
+    os.makedirs(out_root, exist_ok=True)
+
+    for K in K_list:
+        results = []
+        agg = {"R1": defaultdict(float), "R2": defaultdict(float), "Final": defaultdict(float)}
+        n_q = 0
+
+        for qid, qdata in ir.queries_dict.items():
+            query = qdata["query"]
+            gold = qdata["gold_documents"]
+
+            # ---- Round 1 (base/contriever) ----
+            r1_rank = llm_embedding_with_given_embeddings(ir, base_model_name, base_model, domain, query, N1, emb_base)
+
+            # ---- Select K from R1 (oracle) ----
+            if verifier_mode == "oracle":
+                r1_sel = verifier_oracle(r1_rank, gold, K)
+            else:
+                raise NotImplementedError("Only oracle verifier included to keep original deps unchanged.")
+
+            # ---- Augmented query ----
+            aug = build_augmented_query(query, r1_sel, ir.meeting_texts, max_tokens_per_doc=max_tokens_per_doc)
+
+            # ---- Round 2 (tuned-contriever) ----
+            r2_rank = llm_embedding_with_given_embeddings(ir, tuned_model_name, tuned_model, domain, aug, N2, emb_tuned)
+
+            # ---- Final union ----
+            final_rank = dedup_union(r1_rank, r2_rank)
+            if final_cap is not None:
+                final_rank = final_rank[:final_cap]
+
+            # ---- Metrics ----
+            m_r1    = ir.evaluate_performance(r1_rank,    gold)
+            m_r2    = ir.evaluate_performance(r2_rank,    gold)
+            m_final = ir.evaluate_performance(final_rank, gold)
+            for k,v in m_r1.items():    agg["R1"][k]    += v
+            for k,v in m_r2.items():    agg["R2"][k]    += v
+            for k,v in m_final.items(): agg["Final"][k] += v
+            n_q += 1
+
+            results.append({
+                "qid": qid,
+                "query": query,
+                "gold_documents": gold,
+                "R1_ranking": r1_rank,
+                "R1_selected_K": r1_sel,
+                "augmented_query": aug,
+                "R2_ranking": r2_rank,
+                "final_ranking": final_rank
+            })
+
+        # ---- Write outputs ----
+        k_dir = os.path.join(out_root, f"K{K}")
+        os.makedirs(k_dir, exist_ok=True)
+
+        out_json = os.path.join(k_dir, f"{split}.json")
+        with open(out_json, "w") as f:
+            json.dump(results, f, indent=2)
+
+        def _avg(d): return {k: (v / n_q if n_q else 0.0) for k,v in d.items()}
+        avg_r1, avg_r2, avg_fin = _avg(agg["R1"]), _avg(agg["R2"]), _avg(agg["Final"])
+
+        out_txt = os.path.join(k_dir, "metrics.txt")
+        with open(out_txt, "w") as f:
+            f.write(f"K={K} (domain={domain}, split={split})\n")
+            f.write("R1 -> "    + ", ".join(f"{k}: {v:.4f}" for k,v in avg_r1.items())  + "\n")
+            f.write("R2 -> "    + ", ".join(f"{k}: {v:.4f}" for k,v in avg_r2.items())  + "\n")
+            f.write("Final -> " + ", ".join(f"{k}: {v:.4f}" for k,v in avg_fin.items()) + "\n")
+
+        print(f"[two-round] Wrote {out_json} and {out_txt}")
 
 
 if __name__ == "__main__":
@@ -401,12 +533,31 @@ if __name__ == "__main__":
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--domain", required=True, choices=["story", "meeting"])
     parser.add_argument("--split", type=str, default="test")
+    # ---------- two-round mode ----------
+    parser.add_argument("--two_round", action="store_true",
+                        help="If set, also run the two-round pipeline (vanilla run remains unchanged).")
+    parser.add_argument("--r1_model", type=str, default="contriever",
+                        help="Round-1 model name (default: contriever).")
+    parser.add_argument("--r1_embeddings_path", type=str, default=None,
+                        help="Path for Round-1 embeddings JSON (default: embeddings/{domain}/contriever_base.json).")
+    parser.add_argument("--r1_depth", type=int, default=20, help="Top-N to retrieve in Round 1 (default: 20).")
+    parser.add_argument("--r2_depth", type=int, default=20, help="Top-N to retrieve in Round 2 (default: 20).")
+    parser.add_argument("--k_list", nargs="+", type=int, default=[1,2,3],
+                        help="K values for R1->R2 augmentation (default: 1 2 3).")
+    parser.add_argument("--final_cap", type=int, default=None,
+                        help="Optional cap for final union list (None keeps all).")
+    parser.add_argument("--snippet_tokens", type=int, default=256,
+                        help="Max tokens per selected doc to stuff into augmented query (default: 256).")
+    parser.add_argument("--verifier", choices=["oracle"], default="oracle",
+                        help="Verifier type; 'oracle' only (keeps deps unchanged).")
     args = parser.parse_args()
     # Process arguments
     queries_path = os.path.abspath(args.queries_path)
     documents_path = os.path.abspath(args.documents_path)
     embeddings_path = args.embeddings_path
     domain = args.domain
+
+
     n = 8 if domain == "story" else 3
     if not embeddings_path.endswith(".json"):
         embeddings_path = f"{args.embeddings_path}.json"
@@ -494,3 +645,43 @@ if __name__ == "__main__":
         os.makedirs(f"{domain}/{model_name}")
         with open(f"{domain}/{model_name}/{args.split}.json", "w") as f:
             json.dump(data, f, indent=4)
+
+        # ===== Two-round (optional). Vanilla stays unchanged if --two_round is not provided. =====
+    if args.two_round:
+        # Round-1 model loader (default: base contriever). Keep simple to avoid changing your existing loaders.
+        if args.r1_model == "contriever":
+            r1_model = SentenceTransformer("facebook/contriever-msmarco")
+            r1_model.max_seq_length = 512
+        else:
+            # Fallback: if they choose a different name that exists in your table
+            if args.r1_model in model_to_path:
+                r1_model = SentenceTransformer(model_to_path[args.r1_model], trust_remote_code=True)
+                if args.r1_model == "contriever":
+                    r1_model.max_seq_length = 512
+                else:
+                    r1_model.max_seq_length = 4000
+                    r1_model.tokenizer.padding_side = "right"
+            else:
+                raise ValueError(f"Unsupported r1_model: {args.r1_model}")
+
+        # Paths for embedding caches (keep separate per model)
+        r1_emb_path = args.r1_embeddings_path or f"embeddings/{domain}/contriever_base.json"
+        r2_emb_path = embeddings_path  # your tuned model embeddings path already computed/loaded above
+
+        run_two_round_pipeline(
+            ir=ir,
+            domain=domain,
+            split=args.split,
+            base_model_name=args.r1_model,
+            base_model=r1_model,
+            base_embeddings_path=r1_emb_path,
+            tuned_model_name=model_name,    # whatever you passed for the vanilla run (e.g., tuned-contriever)
+            tuned_model=model,
+            tuned_embeddings_path=r2_emb_path,
+            N1=args.r1_depth,
+            N2=args.r2_depth,
+            K_list=tuple(args.k_list),
+            final_cap=args.final_cap,
+            max_tokens_per_doc=args.snippet_tokens,
+            verifier_mode=args.verifier
+        )
