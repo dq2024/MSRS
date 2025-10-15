@@ -24,7 +24,7 @@ python3 retrieve.py \
   --documents_path ../../data/story/documents \
   --embeddings_path embeddings/story/tuned-contriever \
   --method llm_embedding \
-  --model tuned-contriever \
+  --model contriever \
   --two_round \
   --r1_model contriever \
   --r1_embeddings_path embeddings/story/contriever \
