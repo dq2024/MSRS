@@ -463,6 +463,7 @@ def run_two_round_pipeline(
         results = []
         agg = {"R1": defaultdict(float), "R2": defaultdict(float), "Final": defaultdict(float)}
         n_q = 0
+        total_docs_used = 0
 
         for qid, qdata in ir.queries_dict.items():
             query = qdata["query"]
@@ -476,6 +477,8 @@ def run_two_round_pipeline(
                 r1_sel = verifier_oracle(r1_eval, gold, K)
             else:
                 raise NotImplementedError("Only 'oracle' verifier implemented.")
+
+            total_docs_used += len(r1_sel)
 
             aug_query = build_augmented_query(query, r1_sel, ir.meeting_texts, max_tokens_per_doc=max_tokens_per_doc)
 
@@ -508,6 +511,8 @@ def run_two_round_pipeline(
                 "final_eval_topk": final_eval    
             })
 
+        avg_docs_used = total_docs_used / n_q if n_q > 0 else 0
+
         k_dir = os.path.join(out_root, f"K{K}")
         os.makedirs(k_dir, exist_ok=True)
 
@@ -521,6 +526,7 @@ def run_two_round_pipeline(
         out_txt = os.path.join(k_dir, "metrics.txt")
         with open(out_txt, "w") as f:
             f.write(f"K={K} (domain={domain}, split={split}, r1={base_model_name}, r2={tuned_model_name}, n_eval={n_eval})\n")
+            f.write(f"Average docs used for augmentation: {avg_docs_used:.2f} / {K}\n")
             f.write("R1 -> "    + ", ".join(f"{k}: {v:.4f}" for k,v in avg_r1.items())  + "\n")
             f.write("R2 -> "    + ", ".join(f"{k}: {v:.4f}" for k,v in avg_r2.items())  + "\n")
             f.write("Final -> " + ", ".join(f"{k}: {v:.4f}" for k,v in avg_fin.items()) + "\n")
