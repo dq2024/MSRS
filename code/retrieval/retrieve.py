@@ -394,49 +394,55 @@ def verifier_oracle(r1_ranking, gold_documents, k):
     gold = set(gold_documents)
     return [d for d in r1_ranking if d in gold][:k]
 
-def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=256):
-    """Concatenate query + short snippets from the selected docs in the specified format."""
-    def head_tokens(text, n): 
-        toks = text.split()
-        return " ".join(toks[:n])
+def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=256, model=None, model_name=None):    
+    base_format = f"Question: {base_query.strip()}\n\nDocuments: "
     
-    # Print base query info
-    print(f"\n[Augmented Query Construction]")
-    print(f"  Base query tokens: {len(base_query.split())}")
-    print(f"  Documents to include: {len(selected_ids)}")
+    max_token_limit = 512 if model_name in ["contriever", "tuned-contriever"] else 8192
     
-    # Start with "Question: [query]"
-    augmented = f"Question: {base_query.strip()}"
+    def get_token_count(text):
+        if model and hasattr(model, 'tokenizer'):
+            return len(model.tokenizer(text, add_special_tokens=True)['input_ids'])
     
-    # Collect document snippets
-    doc_snippets = []
-    total_original_tokens = 0
-    total_kept_tokens = 0
-    
+    doc_texts = []
     for did in selected_ids:
         if did in id2text:
-            full_text = id2text[did]
-            original_tokens = len(full_text.split())
-            snippet = head_tokens(full_text, max_tokens_per_doc)
-            snippet_tokens = len(snippet.split())
-            
-            total_original_tokens += original_tokens
-            total_kept_tokens += snippet_tokens
-            
-            if original_tokens > max_tokens_per_doc:
-                print(f"  Doc {did}: TRUNCATED from {original_tokens} to {snippet_tokens} tokens")
-            
-            doc_snippets.append(f"{did} {snippet}")
+            words = id2text[did].split()[:max_tokens_per_doc]
+            doc_text = f"{did} {' '.join(words)}"
+            doc_texts.append(doc_text)
     
-    # Add documents section if we have any
-    if doc_snippets:
-        documents_text = "\n".join(doc_snippets)
-        augmented += f"\n\nDocuments: {documents_text}"
+    documents_str = '\n'.join(doc_texts)
+    augmented = base_format + documents_str
     
-    total_augmented_tokens = len(augmented.split())
+    initial_tokens = get_token_count(augmented)
     
-    if total_augmented_tokens > 512:
-        print(f"WARNING: Augmented query has {total_augmented_tokens} tokens, exceeds contriever's 512 limit!")    
+    if initial_tokens > max_token_limit:
+        print(f"Exceeds {max_token_limit} tokens, truncating documents...")
+        
+        truncate_amount = 10  # Remove 10 words at a time
+        iteration = 0
+        
+        while get_token_count(augmented) > max_token_limit and truncate_amount < max_tokens_per_doc:
+            iteration += 1
+            doc_texts = []
+            
+            for did in selected_ids:
+                if did in id2text:
+                    # Reduce document length
+                    words_to_keep = max(10, max_tokens_per_doc - (truncate_amount * iteration))
+                    words = id2text[did].split()[:words_to_keep]
+                    doc_text = f"{did} {' '.join(words)}"
+                    doc_texts.append(doc_text)
+            
+            documents_str = '\n'.join(doc_texts)
+            augmented = base_format + documents_str
+            
+            if words_to_keep <= 10:  
+                print(f"Reached minimum document size, stopping truncation")
+                break
+    
+    final_tokens = get_token_count(augmented)
+    print(f"  Final augmented query: {final_tokens} tokens")
+    
     return augmented
 
 def dedup_union(list_a, list_b):
@@ -478,17 +484,9 @@ def run_two_round_pipeline(
     max_tokens_per_doc=256,
     verifier_mode="oracle"
 ):
-    """
-    Two-round retrieval where both rounds retrieve exactly n_eval docs,
-    and metrics are computed on top-n_eval (mirrors vanilla).
-    Outputs are written under:
-      outputs/two_round/{domain}/r1-{base_model_name}__r2-{tuned_model_name}/K{K}/...
-    """
-    # Prepare per-model embedding caches
     emb_base  = load_or_compute_embeddings(ir, base_model_name,  base_model,  domain, base_embeddings_path)
     emb_tuned = load_or_compute_embeddings(ir, tuned_model_name, tuned_model, domain, tuned_embeddings_path)
 
-    # Output root includes model names so runs are self-describing
     combo_dir = f"r1-{base_model_name}__r2-{tuned_model_name}"
     out_root = os.path.join("outputs", "two_round", domain, combo_dir)
     os.makedirs(out_root, exist_ok=True)
@@ -514,7 +512,14 @@ def run_two_round_pipeline(
 
             total_docs_used += len(r1_sel)
 
-            aug_query = build_augmented_query(query, r1_sel, ir.meeting_texts, max_tokens_per_doc=max_tokens_per_doc)
+            aug_query = build_augmented_query(
+                query, 
+                r1_sel, 
+                ir.meeting_texts, 
+                max_tokens_per_doc=max_tokens_per_doc,
+                model=tuned_model,
+                model_name=tuned_model_name
+            )
 
             r2_eval = llm_embedding_with_given_embeddings(
                 ir, tuned_model_name, tuned_model, domain, aug_query, n_eval, emb_tuned
