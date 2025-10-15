@@ -27,7 +27,7 @@ python3 retrieve.py \
   --two_round \
   --r1_model contriever \
   --r1_embeddings_path embeddings/story/contriever \
-  --k_list 0 1 2 3 4 5 6 7 8 \
+  --k_list 0 1 2 3 \
   --snippet_tokens 256;
 
 python3 retrieve.py \
