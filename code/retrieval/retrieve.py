@@ -410,6 +410,8 @@ def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=
         print(f"  No documents to augment - returning original query")
         return base_query.strip()
     
+    augmented = f"Question: {base_query.strip()}"
+    
     # Collect document snippets
     doc_snippets = []
     total_original_tokens = 0
