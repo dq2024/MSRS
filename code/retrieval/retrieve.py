@@ -31,7 +31,7 @@ model_to_path = {
     "qwen-1-5": "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
     "qwen-7": "Alibaba-NLP/gte-Qwen2-7B-instruct",
     "contriever": "facebook/contriever-msmarco",
-    "tuned-contriever": "/scratch/dq2024/models/diverse_retriever/checkpoints/qampari_base_finetuned_only_random/checkpoint/best_model",
+    "tuned-contriever": "/scratch/dq2024/models/diverse_retriever/checkpoints/qampari_contriever_standard_only_random_0123/checkpoint/best_model",
     'qwen3-0-6': "Qwen/Qwen3-Embedding-0.6B",
 }
 openai_model_to_api = {
