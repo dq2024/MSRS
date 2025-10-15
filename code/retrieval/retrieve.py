@@ -394,8 +394,11 @@ def verifier_oracle(r1_ranking, gold_documents, k):
     gold = set(gold_documents)
     return [d for d in r1_ranking if d in gold][:k]
 
-def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=256, model=None, model_name=None):    
-    base_format = f"Question: {base_query.strip()}\n\nDocuments: "
+def build_augmented_query(base_query, k, selected_ids, id2text, max_tokens_per_doc=256, model=None, model_name=None):    
+    if k != 0:
+        base_format = f"Question: {base_query.strip()}\n\nDocuments: "
+    else: 
+        base_format = f"{base_query.strip()}"
     
     max_token_limit = 512 if model_name in ["contriever", "tuned-contriever"] else 8192
     
@@ -513,9 +516,10 @@ def run_two_round_pipeline(
             total_docs_used += len(r1_sel)
 
             aug_query = build_augmented_query(
-                query, 
-                r1_sel, 
-                ir.meeting_texts, 
+                query,
+                K,
+                r1_sel,
+                ir.meeting_texts,
                 max_tokens_per_doc=max_tokens_per_doc,
                 model=tuned_model,
                 model_name=tuned_model_name
