@@ -439,11 +439,6 @@ def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=
     
     # Print summary statistics
     total_augmented_tokens = len(augmented.split())
-    print(f"\n  Summary:")
-    print(f"    Total document tokens before truncation: {total_original_tokens}")
-    print(f"    Total document tokens after truncation: {total_kept_tokens}")
-    print(f"    Tokens discarded: {total_original_tokens - total_kept_tokens}")
-    print(f"    Final augmented query length: {total_augmented_tokens} tokens")
     
     # Warning if exceeds contriever limit
     if total_augmented_tokens > 512:
