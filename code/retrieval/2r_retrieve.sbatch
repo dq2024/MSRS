@@ -28,10 +28,7 @@ python3 retrieve.py \
   --two_round \
   --r1_model contriever \
   --r1_embeddings_path embeddings/story/contriever \
-  --r1_depth 20 \
-  --r2_depth 20 \
   --k_list 1 2 3 \
-  --final_cap 8 \
   --snippet_tokens 256;
 
 # MEETING (vanilla + two-round)
@@ -45,9 +42,6 @@ python3 retrieve.py \
   --two_round \
   --r1_model contriever \
   --r1_embeddings_path embeddings/meeting/contriever \
-  --r1_depth 20 \
-  --r2_depth 20 \
   --k_list 1 2 3 \
-  --final_cap 3 \
   --snippet_tokens 256
 "

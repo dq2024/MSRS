@@ -438,17 +438,25 @@ def run_two_round_pipeline(
     split,
     base_model_name, base_model, base_embeddings_path,   # Round 1
     tuned_model_name, tuned_model, tuned_embeddings_path, # Round 2
-    N1=20, N2=20,
+    n_eval=8,                     
     K_list=(1,2,3),
-    final_cap=None,
+    final_cap=None,               
     max_tokens_per_doc=256,
-    verifier_mode="oracle"  # only "oracle" implemented here
+    verifier_mode="oracle"
 ):
-    # Embeddings per model
+    """
+    Two-round retrieval where both rounds retrieve exactly n_eval docs,
+    and metrics are computed on top-n_eval (mirrors vanilla).
+    Outputs are written under:
+      outputs/two_round/{domain}/r1-{base_model_name}__r2-{tuned_model_name}/K{K}/...
+    """
+    # Prepare per-model embedding caches
     emb_base  = load_or_compute_embeddings(ir, base_model_name,  base_model,  domain, base_embeddings_path)
     emb_tuned = load_or_compute_embeddings(ir, tuned_model_name, tuned_model, domain, tuned_embeddings_path)
 
-    out_root = os.path.join("outputs", "two_round", domain)
+    # Output root includes model names so runs are self-describing
+    combo_dir = f"r1-{base_model_name}__r2-{tuned_model_name}"
+    out_root = os.path.join("outputs", "two_round", domain, combo_dir)
     os.makedirs(out_root, exist_ok=True)
 
     for K in K_list:
@@ -458,32 +466,31 @@ def run_two_round_pipeline(
 
         for qid, qdata in ir.queries_dict.items():
             query = qdata["query"]
-            gold = qdata["gold_documents"]
+            gold  = qdata["gold_documents"]
 
-            # ---- Round 1 (base/contriever) ----
-            r1_rank = llm_embedding_with_given_embeddings(ir, base_model_name, base_model, domain, query, N1, emb_base)
+            r1_eval = llm_embedding_with_given_embeddings(
+                ir, base_model_name, base_model, domain, query, n_eval, emb_base
+            )
 
-            # ---- Select K from R1 (oracle) ----
             if verifier_mode == "oracle":
-                r1_sel = verifier_oracle(r1_rank, gold, K)
+                r1_sel = verifier_oracle(r1_eval, gold, K)
             else:
-                raise NotImplementedError("Only oracle verifier included to keep original deps unchanged.")
+                raise NotImplementedError("Only 'oracle' verifier implemented.")
 
-            # ---- Augmented query ----
-            aug = build_augmented_query(query, r1_sel, ir.meeting_texts, max_tokens_per_doc=max_tokens_per_doc)
+            aug_query = build_augmented_query(query, r1_sel, ir.meeting_texts, max_tokens_per_doc=max_tokens_per_doc)
 
-            # ---- Round 2 (tuned-contriever) ----
-            r2_rank = llm_embedding_with_given_embeddings(ir, tuned_model_name, tuned_model, domain, aug, N2, emb_tuned)
+            r2_eval = llm_embedding_with_given_embeddings(
+                ir, tuned_model_name, tuned_model, domain, aug_query, n_eval, emb_tuned
+            )
 
-            # ---- Final union ----
-            final_rank = dedup_union(r1_rank, r2_rank)
+            final_full = dedup_union(r1_eval, r2_eval)
             if final_cap is not None:
-                final_rank = final_rank[:final_cap]
+                final_full = final_full[:final_cap]
+            final_eval = final_full[:n_eval]
 
-            # ---- Metrics ----
-            m_r1    = ir.evaluate_performance(r1_rank,    gold)
-            m_r2    = ir.evaluate_performance(r2_rank,    gold)
-            m_final = ir.evaluate_performance(final_rank, gold)
+            m_r1    = ir.evaluate_performance(r1_eval,    gold)
+            m_r2    = ir.evaluate_performance(r2_eval,    gold)
+            m_final = ir.evaluate_performance(final_eval, gold)
             for k,v in m_r1.items():    agg["R1"][k]    += v
             for k,v in m_r2.items():    agg["R2"][k]    += v
             for k,v in m_final.items(): agg["Final"][k] += v
@@ -493,14 +500,14 @@ def run_two_round_pipeline(
                 "qid": qid,
                 "query": query,
                 "gold_documents": gold,
-                "R1_ranking": r1_rank,
+                "R1_eval_topk": r1_eval,       
                 "R1_selected_K": r1_sel,
-                "augmented_query": aug,
-                "R2_ranking": r2_rank,
-                "final_ranking": final_rank
+                "augmented_query": aug_query,
+                "R2_eval_topk": r2_eval,       
+                "final_ranking_full": final_full, 
+                "final_eval_topk": final_eval    
             })
 
-        # ---- Write outputs ----
         k_dir = os.path.join(out_root, f"K{K}")
         os.makedirs(k_dir, exist_ok=True)
 
@@ -513,12 +520,14 @@ def run_two_round_pipeline(
 
         out_txt = os.path.join(k_dir, "metrics.txt")
         with open(out_txt, "w") as f:
-            f.write(f"K={K} (domain={domain}, split={split})\n")
+            f.write(f"K={K} (domain={domain}, split={split}, r1={base_model_name}, r2={tuned_model_name}, n_eval={n_eval})\n")
             f.write("R1 -> "    + ", ".join(f"{k}: {v:.4f}" for k,v in avg_r1.items())  + "\n")
             f.write("R2 -> "    + ", ".join(f"{k}: {v:.4f}" for k,v in avg_r2.items())  + "\n")
             f.write("Final -> " + ", ".join(f"{k}: {v:.4f}" for k,v in avg_fin.items()) + "\n")
 
         print(f"[two-round] Wrote {out_json} and {out_txt}")
+
+
 
 
 if __name__ == "__main__":
@@ -667,6 +676,7 @@ if __name__ == "__main__":
         # Paths for embedding caches (keep separate per model)
         r1_emb_path = args.r1_embeddings_path or f"embeddings/{domain}/contriever_base.json"
         r2_emb_path = embeddings_path  # your tuned model embeddings path already computed/loaded above
+        n_eval = 8 if domain == "story" else 3
 
         run_two_round_pipeline(
             ir=ir,
@@ -675,11 +685,10 @@ if __name__ == "__main__":
             base_model_name=args.r1_model,
             base_model=r1_model,
             base_embeddings_path=r1_emb_path,
-            tuned_model_name=model_name,    # whatever you passed for the vanilla run (e.g., tuned-contriever)
+            tuned_model_name=model_name,     # whatever you passed to vanilla (e.g., tuned-contriever)
             tuned_model=model,
             tuned_embeddings_path=r2_emb_path,
-            N1=args.r1_depth,
-            N2=args.r2_depth,
+            n_eval=n_eval,
             K_list=tuple(args.k_list),
             final_cap=args.final_cap,
             max_tokens_per_doc=args.snippet_tokens,
