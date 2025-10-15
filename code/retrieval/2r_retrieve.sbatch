@@ -31,6 +31,7 @@ python3 retrieve.py \
   --r1_depth 20 \
   --r2_depth 20 \
   --k_list 1 2 3 \
+  --final_cap 8 \
   --snippet_tokens 256;
 
 # MEETING (vanilla + two-round)
@@ -47,5 +48,6 @@ python3 retrieve.py \
   --r1_depth 20 \
   --r2_depth 20 \
   --k_list 1 2 3 \
+  --final_cap 3 \
   --snippet_tokens 256
 "
