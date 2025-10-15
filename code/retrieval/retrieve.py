@@ -395,15 +395,62 @@ def verifier_oracle(r1_ranking, gold_documents, k):
     return [d for d in r1_ranking if d in gold][:k]
 
 def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=256):
-    """Concatenate query + short snippets from the selected docs."""
+    """Concatenate query + short snippets from the selected docs in the specified format."""
     def head_tokens(text, n): 
         toks = text.split()
         return " ".join(toks[:n])
-    parts = [base_query.strip()]
+    
+    # Print base query info
+    print(f"\n[Augmented Query Construction]")
+    print(f"  Base query tokens: {len(base_query.split())}")
+    print(f"  Documents to include: {len(selected_ids)}")
+    
+    # Start with "Question: [query]"
+    augmented = f"Question: {base_query.strip()}"
+    
+    # Collect document snippets
+    doc_snippets = []
+    total_original_tokens = 0
+    total_kept_tokens = 0
+    
     for did in selected_ids:
         if did in id2text:
-            parts.append(f"[DOC {did}]: {head_tokens(id2text[did], max_tokens_per_doc)}")
-    return "\n\n".join(parts)
+            full_text = id2text[did]
+            original_tokens = len(full_text.split())
+            snippet = head_tokens(full_text, max_tokens_per_doc)
+            snippet_tokens = len(snippet.split())
+            
+            total_original_tokens += original_tokens
+            total_kept_tokens += snippet_tokens
+            
+            # Print truncation info per document
+            if original_tokens > max_tokens_per_doc:
+                print(f"  Doc {did}: TRUNCATED from {original_tokens} to {snippet_tokens} tokens")
+            else:
+                print(f"  Doc {did}: {snippet_tokens} tokens (no truncation needed)")
+            
+            # Format each doc with its ID as a prefix
+            doc_snippets.append(f"{did} {snippet}")
+    
+    # Add documents section if we have any
+    if doc_snippets:
+        documents_text = "\n".join(doc_snippets)
+        augmented += f"\n\nDocuments: {documents_text}"
+    
+    # Print summary statistics
+    total_augmented_tokens = len(augmented.split())
+    print(f"\n  Summary:")
+    print(f"    Total document tokens before truncation: {total_original_tokens}")
+    print(f"    Total document tokens after truncation: {total_kept_tokens}")
+    print(f"    Tokens discarded: {total_original_tokens - total_kept_tokens}")
+    print(f"    Final augmented query length: {total_augmented_tokens} tokens")
+    
+    # Warning if exceeds contriever limit
+    if total_augmented_tokens > 512:
+        print(f"  ⚠️  WARNING: Augmented query has {total_augmented_tokens} tokens, exceeds contriever's 512 limit!")
+        print(f"      Will be handled by chunking/averaging in get_embedding()")
+    
+    return augmented
 
 def dedup_union(list_a, list_b):
     seen, out = set(), []
