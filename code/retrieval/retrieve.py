@@ -438,11 +438,11 @@ if __name__ == "__main__":
             try:
                 model[0].auto_model.load_state_dict(encoder_state, strict=True)
             except RuntimeError as e:
-                print(f"Warning: Some weights not loaded properly: {e}")
+                print(f"Warning: Some weights not loaded properly: {e}", flush=True)
                 # If it fails, load with strict=False but be aware of the issue
                 model[0].auto_model.load_state_dict(encoder_state, strict=False)
             model.max_seq_length = 512
-            print(f"Loaded fine-tuned contriever from {checkpoint_path}")
+            print(f"Loaded fine-tuned contriever from {checkpoint_path}", flush=True)
 
         else:
             model = SentenceTransformer(
