@@ -32,6 +32,7 @@ model_to_path = {
     "qwen-7": "Alibaba-NLP/gte-Qwen2-7B-instruct",
     "contriever": "facebook/contriever-msmarco",
     "tuned-contriever": "/scratch/dq2024/models/diverse_retriever/checkpoints/qampari_contriever_standard_only_random_0123/checkpoint/best_model",
+    "tuned-base-contriever": "/scratch/dq2024/models/diverse_retriever/checkpoints/qampari_base_finetuned_only_random/checkpoint/best_model",
     'qwen3-0-6': "Qwen/Qwen3-Embedding-0.6B",
 }
 openai_model_to_api = {
@@ -46,7 +47,7 @@ gemini_model_to_api = {
 supported_models = [
     "nv1", "nv2", "qwen-1-5", "qwen-7", "gritlm", "text-3-small", 
     "text-3-large", "text-ada", "promptriever", "gemini-embedding", 
-    "bm25", "contriever", "tuned-contriever", "qwen3-0-6"
+    "bm25", "contriever", "tuned-contriever", "tuned-base-contriever", "qwen3-0-6"
 ]
 
 prompt = "Given a question, retrieve passages that answer the question"
@@ -93,7 +94,7 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
             return result.embeddings[0].values
         if is_query:
             if model_name in model_to_path:
-                if model_name == "contriever" or model_name == "tuned-contriever":
+                if model_name == "contriever" or model_name == "tuned-contriever" or model_name == "tuned-base-contriever":
                     # Contriever doesn't use instruction prefixes
                     return model.encode(
                         [text], 
@@ -118,7 +119,7 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
                 )[0]
         else:
             if model_name in model_to_path:
-                if model_name == "contriever" or model_name == "tuned-contriever":
+                if model_name == "contriever" or model_name == "tuned-contriever" or model_name == "tuned-base-contriever":
                     # Contriever doesn't use instruction prefixes
                     return model.encode(
                         [text], 
@@ -164,7 +165,7 @@ def get_embedding(model_name, model, domain, text, max_tokens=1000, is_query=Fal
                     contents=chunk
                 ).embeddings[0].values for chunk in chunks
             ])
-        elif model_name == "contriever" or model_name == "tuned-contriever":
+        elif model_name == "contriever" or model_name == "tuned-contriever" or model_name == "tuned-base-contriever":
             chunk_embeddings = []
             for chunk in chunks:
                 chunk_embeddings.append(
@@ -411,7 +412,7 @@ def build_augmented_query(base_query, selected_ids, id2text, max_tokens_per_doc=
         return base_query.strip()
     
     augmented = f"Question: {base_query.strip()}"
-    
+
     # Collect document snippets
     doc_snippets = []
     total_original_tokens = 0
@@ -620,7 +621,7 @@ if __name__ == "__main__":
     model_name = args.model
     model = None
     if model_name in model_to_path:
-        if model_name == "tuned-contriever":
+        if model_name == "tuned-contriever" or model_name == "tuned-base-contriever":
             import torch
     
             model = SentenceTransformer("facebook/contriever-msmarco")
