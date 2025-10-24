@@ -12,7 +12,7 @@ if [[ -e /dev/nvidia0 ]]; then nv="--nv"; fi
 
 singularity exec ${nv} \
   --overlay /scratch/$USER/MSRS:ro \
-  /share/apps/images/cuda12.1.1-cudnn8.9.0-devel-ubuntu22.04.2.sif \
+  /share/apps/images/cuda13.0.1-cudnn9.13.0-ubuntu-24.04.3.sif \
   /bin/bash -c "
 source /ext3/env.sh;
 conda activate /scratch/dq2024/MSRS;
