@@ -509,12 +509,12 @@ def run_two_round_pipeline(
             gold  = qdata["gold_documents"]
 
             r1_full = llm_embedding_with_given_embeddings(
-                ir, base_model_name, base_model, domain, query, 10, emb_base  
+                ir, base_model_name, base_model, domain, query, 20, emb_base  
             )
 
             if verifier_mode == "oracle":
                 r1_sel = verifier_oracle(r1_full, gold, K)
-                r1_all_gold = verifier_oracle(r1_full, gold, 10)
+                r1_all_gold = verifier_oracle(r1_full, gold, 20)
                 r1_top10 = r1_all_gold.copy()
                 for doc in r1_full:
                     if doc not in r1_all_gold:
@@ -530,7 +530,7 @@ def run_two_round_pipeline(
             aug_query = build_augmented_query(query, r1_sel, ir.meeting_texts, max_tokens_per_doc=max_tokens_per_doc)
 
             r2_full = llm_embedding_with_given_embeddings(
-                ir, tuned_model_name, tuned_model, domain, aug_query, 10, emb_tuned
+                ir, tuned_model_name, tuned_model, domain, aug_query, 20, emb_tuned
             )
             r2_eval = r2_full[:n_eval]
             final_full = dedup_union(r1_all_gold, r2_full)
