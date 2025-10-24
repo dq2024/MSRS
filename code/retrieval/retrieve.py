@@ -514,7 +514,13 @@ def run_two_round_pipeline(
 
             if verifier_mode == "oracle":
                 r1_sel = verifier_oracle(r1_full, gold, K)
-                r1_top10 = verifier_oracle(r1_full, gold, 10)
+                r1_all_gold = verifier_oracle(r1_full, gold, 10)
+                r1_top10 = r1_all_gold.copy()
+                for doc in r1_full:
+                    if doc not in r1_all_gold:
+                        r1_top10.append(doc)
+                        if len(r1_top10) >= n_eval:
+                            break
             else:
                 raise NotImplementedError("Only 'oracle' verifier implemented.")
 
@@ -527,7 +533,7 @@ def run_two_round_pipeline(
                 ir, tuned_model_name, tuned_model, domain, aug_query, 10, emb_tuned
             )
             r2_eval = r2_full[:n_eval]
-            final_full = dedup_union(r1_top10, r2_full)
+            final_full = dedup_union(r1_all_gold, r2_full)
             if final_cap is not None:
                 final_full = final_full[:final_cap]
             final_eval = final_full[:n_eval]
