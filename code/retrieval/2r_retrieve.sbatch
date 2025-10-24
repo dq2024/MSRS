@@ -11,13 +11,16 @@
 if [[ -e /dev/nvidia0 ]]; then nv="--nv"; fi
 
 singularity exec ${nv} \
-  --overlay /scratch/$USER/overlay-25GB-500K.ext3:ro \
+  --overlay /scratch/$USER/dr-env-3-9.ext3:ro \
   /share/apps/images/cuda12.1.1-cudnn8.9.0-devel-ubuntu22.04.2.sif \
   /bin/bash -c "
 source /ext3/env.sh;
 conda activate base;
 
-python3 retrieve.py \
+echo '========================================';
+echo 'STORY DOMAIN - TWO ROUND';
+echo '========================================';
+python3 retrieve_modified.py \
   --domain story \
   --queries_path ../../data/story/queries_test.json \
   --documents_path ../../data/story/documents \
@@ -27,10 +30,17 @@ python3 retrieve.py \
   --two_round \
   --r1_model contriever \
   --r1_embeddings_path embeddings/story/contriever \
-  --k_list 0 1 2 3 4 5 6 7 8 \
+  --r1_depth 20 \
+  --r2_depth 10 \
+  --k_list 0 1 2 3 \
+  --final_cap 8 \
   --snippet_tokens 256;
 
-python3 retrieve.py \
+echo '';
+echo '========================================';
+echo 'MEETING DOMAIN - TWO ROUND';
+echo '========================================';
+python3 retrieve_modified.py \
   --domain meeting \
   --queries_path ../../data/meeting/queries_test.json \
   --documents_path ../../data/meeting/documents \
@@ -40,6 +50,37 @@ python3 retrieve.py \
   --two_round \
   --r1_model contriever \
   --r1_embeddings_path embeddings/meeting/contriever \
+  --r1_depth 20 \
+  --r2_depth 10 \
   --k_list 1 2 3 \
-  --snippet_tokens 256
+  --final_cap 3 \
+  --snippet_tokens 256;
+
+echo '';
+echo '========================================';
+echo 'STORY DOMAIN - ONE ROUND BASELINE';
+echo '========================================';
+python3 retrieve_modified.py \
+  --domain story \
+  --queries_path ../../data/story/queries_test.json \
+  --documents_path ../../data/story/documents \
+  --embeddings_path embeddings/story/tuned-contriever \
+  --method llm_embedding \
+  --model tuned-contriever \
+  --one_round \
+  --one_round_depth 20;
+
+echo '';
+echo '========================================';
+echo 'MEETING DOMAIN - ONE ROUND BASELINE';
+echo '========================================';
+python3 retrieve_modified.py \
+  --domain meeting \
+  --queries_path ../../data/meeting/queries_test.json \
+  --documents_path ../../data/meeting/documents \
+  --embeddings_path embeddings/meeting/tuned-contriever \
+  --method llm_embedding \
+  --model tuned-contriever \
+  --one_round \
+  --one_round_depth 20;
 "
