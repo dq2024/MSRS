@@ -508,24 +508,26 @@ def run_two_round_pipeline(
             query = qdata["query"]
             gold  = qdata["gold_documents"]
 
-            r1_eval = llm_embedding_with_given_embeddings(
-                ir, base_model_name, base_model, domain, query, n_eval, emb_base
+            r1_full = llm_embedding_with_given_embeddings(
+                ir, base_model_name, base_model, domain, query, 10, emb_base  
             )
 
             if verifier_mode == "oracle":
-                r1_sel = verifier_oracle(r1_eval, gold, K)
+                r1_sel = verifier_oracle(r1_full, gold, K)
+                r1_top10 = verifier_oracle(r1_full, gold, 10)
             else:
                 raise NotImplementedError("Only 'oracle' verifier implemented.")
 
+            r1_eval = r1_top10[:n_eval]
             total_docs_used += len(r1_sel)
 
             aug_query = build_augmented_query(query, r1_sel, ir.meeting_texts, max_tokens_per_doc=max_tokens_per_doc)
 
-            r2_eval = llm_embedding_with_given_embeddings(
-                ir, tuned_model_name, tuned_model, domain, aug_query, n_eval, emb_tuned
+            r2_full = llm_embedding_with_given_embeddings(
+                ir, tuned_model_name, tuned_model, domain, aug_query, 10, emb_tuned
             )
-
-            final_full = dedup_union(r1_eval, r2_eval)
+            r2_eval = r2_full[:n_eval]
+            final_full = dedup_union(r1_top10, r2_full)
             if final_cap is not None:
                 final_full = final_full[:final_cap]
             final_eval = final_full[:n_eval]
