@@ -11,11 +11,11 @@
 if [[ -e /dev/nvidia0 ]]; then nv="--nv"; fi
 
 singularity exec ${nv} \
-  --overlay /scratch/$USER/dr-env-3-9.ext3:ro \
+  --overlay /scratch/$USER/MSRS:ro \
   /share/apps/images/cuda12.1.1-cudnn8.9.0-devel-ubuntu22.04.2.sif \
   /bin/bash -c "
 source /ext3/env.sh;
-conda activate base;
+conda activate /scratch/dq2024/MSRS;
 
 echo '========================================';
 echo 'STORY DOMAIN - TWO ROUND';
