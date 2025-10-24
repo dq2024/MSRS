@@ -20,7 +20,7 @@ conda activate base;
 echo '========================================';
 echo 'STORY DOMAIN - TWO ROUND';
 echo '========================================';
-python3 retrieve_modified.py \
+python3 retrieve.py \
   --domain story \
   --queries_path ../../data/story/queries_test.json \
   --documents_path ../../data/story/documents \
@@ -40,7 +40,7 @@ echo '';
 echo '========================================';
 echo 'MEETING DOMAIN - TWO ROUND';
 echo '========================================';
-python3 retrieve_modified.py \
+python3 retrieve.py \
   --domain meeting \
   --queries_path ../../data/meeting/queries_test.json \
   --documents_path ../../data/meeting/documents \
@@ -60,7 +60,7 @@ echo '';
 echo '========================================';
 echo 'STORY DOMAIN - ONE ROUND BASELINE';
 echo '========================================';
-python3 retrieve_modified.py \
+python3 retrieve.py \
   --domain story \
   --queries_path ../../data/story/queries_test.json \
   --documents_path ../../data/story/documents \
@@ -74,7 +74,7 @@ echo '';
 echo '========================================';
 echo 'MEETING DOMAIN - ONE ROUND BASELINE';
 echo '========================================';
-python3 retrieve_modified.py \
+python3 retrieve.py \
   --domain meeting \
   --queries_path ../../data/meeting/queries_test.json \
   --documents_path ../../data/meeting/documents \
