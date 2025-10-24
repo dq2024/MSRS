@@ -481,9 +481,7 @@ def run_two_round_pipeline(
     K_list=(1,2,3),
     final_cap=None,               
     max_tokens_per_doc=256,
-    verifier_mode="oracle",
-    r1_depth=20,
-    r2_depth=10
+    verifier_mode="oracle"
 ):
     """
     Two-round retrieval where both rounds retrieve exactly n_eval docs,
@@ -510,54 +508,47 @@ def run_two_round_pipeline(
             query = qdata["query"]
             gold  = qdata["gold_documents"]
 
-        r1_full = llm_embedding_with_given_embeddings(
-            ir, base_model_name, base_model, domain, query, r1_depth, emb_base
-        )
+            r1_eval = llm_embedding_with_given_embeddings(
+                ir, base_model_name, base_model, domain, query, n_eval, emb_base
+            )
 
-        if verifier_mode == "oracle":
-            r1_sel = verifier_oracle(r1_full, gold, K) 
-        else:
-            raise NotImplementedError("Only 'oracle' verifier implemented.")
+            if verifier_mode == "oracle":
+                r1_sel = verifier_oracle(r1_eval, gold, K)
+            else:
+                raise NotImplementedError("Only 'oracle' verifier implemented.")
 
-        total_docs_used += len(r1_sel)
+            total_docs_used += len(r1_sel)
 
-        aug_query = build_augmented_query(query, r1_sel, ir.meeting_texts, max_tokens_per_doc=max_tokens_per_doc)
+            aug_query = build_augmented_query(query, r1_sel, ir.meeting_texts, max_tokens_per_doc=max_tokens_per_doc)
 
-        r2_full = llm_embedding_with_given_embeddings(
-            ir, tuned_model_name, tuned_model, domain, aug_query, r2_depth, emb_tuned  
-        )
+            r2_eval = llm_embedding_with_given_embeddings(
+                ir, tuned_model_name, tuned_model, domain, aug_query, n_eval, emb_tuned
+            )
 
-        final_full = dedup_union(r1_full, r2_full) 
+            final_full = dedup_union(r1_eval, r2_eval)
+            if final_cap is not None:
+                final_full = final_full[:final_cap]
+            final_eval = final_full[:n_eval]
 
-        if final_cap is not None:
-            final_full = final_full[:final_cap]
+            m_r1    = ir.evaluate_performance(r1_eval,    gold)
+            m_r2    = ir.evaluate_performance(r2_eval,    gold)
+            m_final = ir.evaluate_performance(final_eval, gold)
+            for k,v in m_r1.items():    agg["R1"][k]    += v
+            for k,v in m_r2.items():    agg["R2"][k]    += v
+            for k,v in m_final.items(): agg["Final"][k] += v
+            n_q += 1
 
-        r1_eval = r1_full[:n_eval]  
-        r2_eval = r2_full[:n_eval]  
-        final_eval = final_full[:n_eval]
-
-        m_r1    = ir.evaluate_performance(r1_eval,    gold)
-        m_r2    = ir.evaluate_performance(r2_eval,    gold)
-        m_final = ir.evaluate_performance(final_eval, gold)
-
-        for k,v in m_r1.items():    agg["R1"][k]    += v
-        for k,v in m_r2.items():    agg["R2"][k]    += v
-        for k,v in m_final.items(): agg["Final"][k] += v
-        n_q += 1
-
-        results.append({
-            "qid": qid,
-            "query": query,
-            "gold_documents": gold,
-            "R1_full_topk": r1_full,      
-            "R1_eval_topk": r1_eval,       
-            "R1_selected_K": r1_sel,       
-            "augmented_query": aug_query,
-            "R2_full_topk": r2_full,      
-            "R2_eval_topk": r2_eval,       
-            "final_ranking_full": final_full,  
-            "final_eval_topk": final_eval     
-        })
+            results.append({
+                "qid": qid,
+                "query": query,
+                "gold_documents": gold,
+                "R1_eval_topk": r1_eval,       
+                "R1_selected_K": r1_sel,
+                "augmented_query": aug_query,
+                "R2_eval_topk": r2_eval,       
+                "final_ranking_full": final_full, 
+                "final_eval_topk": final_eval    
+            })
 
         avg_docs_used = total_docs_used / n_q if n_q > 0 else 0
 
@@ -582,55 +573,6 @@ def run_two_round_pipeline(
         print(f"[two-round] Wrote {out_json} and {out_txt}")
 
 
-# Lines 611-675 - ENTIRELY NEW FUNCTION
-def run_one_round_baseline(
-    ir, domain, split, model_name, model, embeddings_path, n_eval=8, depth=20
-):
-    """One-round baseline: retrieve 'depth' docs and evaluate top n_eval."""
-    emb = load_or_compute_embeddings(ir, model_name, model, domain, embeddings_path)
-    
-    out_root = os.path.join("outputs", "one_round", domain, model_name)
-    os.makedirs(out_root, exist_ok=True)
-    
-    results = []
-    agg = defaultdict(float)
-    n_q = 0
-    
-    for qid, qdata in ir.queries_dict.items():
-        query = qdata["query"]
-        gold = qdata["gold_documents"]
-        
-        retrieved_full = llm_embedding_with_given_embeddings(
-            ir, model_name, model, domain, query, depth, emb
-        )
-        retrieved_eval = retrieved_full[:n_eval]
-        
-        metrics = ir.evaluate_performance(retrieved_eval, gold)
-        for k, v in metrics.items():
-            agg[k] += v
-        n_q += 1
-        
-        results.append({
-            "qid": qid,
-            "query": query,
-            "gold_documents": gold,
-            "retrieved_full": retrieved_full,
-            "retrieved_eval": retrieved_eval,
-            "metrics": metrics
-        })
-    
-    out_json = os.path.join(out_root, f"{split}.json")
-    with open(out_json, "w") as f:
-        json.dump(results, f, indent=2)
-    
-    avg_metrics = {k: (v / n_q if n_q else 0.0) for k, v in agg.items()}
-    
-    out_txt = os.path.join(out_root, "metrics.txt")
-    with open(out_txt, "w") as f:
-        f.write(f"One-round baseline (domain={domain}, split={split}, model={model_name}, n_eval={n_eval}, depth={depth})\n")
-        f.write("Metrics -> " + ", ".join(f"{k}: {100 * v:.4f}" for k, v in avg_metrics.items()) + "\n")
-    
-    print(f"[one-round] Wrote {out_json} and {out_txt}")
 
 
 if __name__ == "__main__":
@@ -652,10 +594,8 @@ if __name__ == "__main__":
                         help="Round-1 model name (default: contriever).")
     parser.add_argument("--r1_embeddings_path", type=str, default=None,
                         help="Path for Round-1 embeddings JSON (default: embeddings/{domain}/contriever_base.json).")
-    parser.add_argument("--r1_depth", type=int, default=20, 
-                        help="Top-N to retrieve in Round 1 (default: 20).")
-    parser.add_argument("--r2_depth", type=int, default=20, 
-                        help="Top-N to retrieve in Round 2 (default: 20).")
+    parser.add_argument("--r1_depth", type=int, default=20, help="Top-N to retrieve in Round 1 (default: 20).")
+    parser.add_argument("--r2_depth", type=int, default=20, help="Top-N to retrieve in Round 2 (default: 20).")
     parser.add_argument("--k_list", nargs="+", type=int, default=[1,2,3],
                         help="K values for R1->R2 augmentation (default: 1 2 3).")
     parser.add_argument("--final_cap", type=int, default=None,
@@ -664,11 +604,6 @@ if __name__ == "__main__":
                         help="Max tokens per selected doc to stuff into augmented query (default: 256).")
     parser.add_argument("--verifier", choices=["oracle"], default="oracle",
                         help="Verifier type; 'oracle' only (keeps deps unchanged).")
-    # ---------- one-round mode ----------
-    parser.add_argument("--one_round", action="store_true",
-                        help="If set, run one-round baseline retrieval.")
-    parser.add_argument("--one_round_depth", type=int, default=20,
-                        help="Number of docs to retrieve in one-round mode (default: 20).")
     args = parser.parse_args()
     # Process arguments
     queries_path = os.path.abspath(args.queries_path)
@@ -765,11 +700,14 @@ if __name__ == "__main__":
         with open(f"{domain}/{model_name}/{args.split}.json", "w") as f:
             json.dump(data, f, indent=4)
 
+        # ===== Two-round (optional). Vanilla stays unchanged if --two_round is not provided. =====
     if args.two_round:
+        # Round-1 model loader (default: base contriever). Keep simple to avoid changing your existing loaders.
         if args.r1_model == "contriever":
             r1_model = SentenceTransformer("facebook/contriever-msmarco")
             r1_model.max_seq_length = 512
         else:
+            # Fallback: if they choose a different name that exists in your table
             if args.r1_model in model_to_path:
                 r1_model = SentenceTransformer(model_to_path[args.r1_model], trust_remote_code=True)
                 if args.r1_model == "contriever":
@@ -780,8 +718,9 @@ if __name__ == "__main__":
             else:
                 raise ValueError(f"Unsupported r1_model: {args.r1_model}")
 
+        # Paths for embedding caches (keep separate per model)
         r1_emb_path = args.r1_embeddings_path or f"embeddings/{domain}/contriever_base.json"
-        r2_emb_path = embeddings_path  
+        r2_emb_path = embeddings_path  # your tuned model embeddings path already computed/loaded above
         n_eval = 8 if domain == "story" else 3
 
         run_two_round_pipeline(
@@ -798,16 +737,5 @@ if __name__ == "__main__":
             K_list=tuple(args.k_list),
             final_cap=args.final_cap,
             max_tokens_per_doc=args.snippet_tokens,
-            verifier_mode=args.verifier,
-            r1_depth=args.r1_depth,
-            r2_depth=args.r2_depth
-        )
-
-    if args.one_round:
-        n_eval = 8 if domain == "story" else 3
-        run_one_round_baseline(
-            ir=ir, domain=domain, split=args.split,
-            model_name=model_name, model=model,
-            embeddings_path=embeddings_path,
-            n_eval=n_eval, depth=args.one_round_depth
+            verifier_mode=args.verifier
         )
